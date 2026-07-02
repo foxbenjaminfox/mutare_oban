@@ -100,9 +100,9 @@ defmodule Mutare.Oban.WorkerReturnTest do
 
     test "each recorded site carries the label of the return it becomes" do
       src = worker("def perform(_job), do: {:error, :boom}")
-      {_metamutant, sites, _next_id} = Mutare.transform_string(src, mutators: @mutators)
+      result = Mutare.transform_string(src, mutators: @mutators)
 
-      labels = Map.new(sites, &{&1.mutated_code, &1.variant})
+      labels = Map.new(result.mutants, &{&1.mutated_code, &1.variant})
 
       assert labels[":ok"] == ["ok"]
       assert labels["{:cancel, :boom}"] == ["cancel"]
@@ -112,9 +112,9 @@ defmodule Mutare.Oban.WorkerReturnTest do
       src =
         worker("def perform(_job), do: {:error, :boom} # mutare:ignore[oban_worker_return:ok]")
 
-      {_metamutant, sites, _next_id} = Mutare.transform_string(src, mutators: @mutators)
+      result = Mutare.transform_string(src, mutators: @mutators)
 
-      ignored? = Map.new(sites, &{&1.mutated_code, &1.ignored})
+      ignored? = Map.new(result.mutants, &{&1.mutated_code, &1.ignored})
 
       assert ignored?[":ok"] == true
       assert ignored?["{:cancel, :boom}"] == false

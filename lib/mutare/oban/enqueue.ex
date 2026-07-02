@@ -25,7 +25,7 @@ defmodule Mutare.Oban.Enqueue do
 
   It matches the **`new/N` call** (not the keyword list — Mutare descends trailing keyword
   options as individual call arguments, never offering the list as a single node), resolving it
-  through `Mutare.Transform.Calls.resolved_call/1` so the direct, aliased, and piped
+  through `Mutare.Calls.resolved_call/1` so the direct, aliased, and piped
   (`args |> MyWorker.new(opts)`) forms all match, and rebuilds the call with the mutated options
   in the form the source wrote. It fires on **any** module's `new` whose options carry one of
   the keys it mutates (`max_attempts`, `unique`, `schedule_in`, `scheduled_at`) — Oban-distinctive
@@ -39,8 +39,8 @@ defmodule Mutare.Oban.Enqueue do
   @behaviour Mutare.Mutator
 
   alias Mutare.AST
+  alias Mutare.Calls
   alias Mutare.Mutator.Mutation
-  alias Mutare.Transform.Calls
 
   # The options this mutator acts on; also the witnesses that a `new/N` call is (probably) an
   # Oban enqueue. `unique`/`schedule_in`/`scheduled_at` are dropped; `max_attempts` is capped.

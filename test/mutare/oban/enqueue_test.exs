@@ -80,9 +80,9 @@ defmodule Mutare.Oban.EnqueueTest do
 
     test "each mutant is tagged with the option it attacks and carries a survivor note" do
       src = jobs("MyApp.Worker.new(%{id: id}, max_attempts: 5, unique: [period: 60])")
-      {_metamutant, sites, _next_id} = Mutare.transform_string(src, mutators: @mutators)
+      result = Mutare.transform_string(src, mutators: @mutators)
 
-      by_variant = Map.new(sites, &{&1.variant, &1})
+      by_variant = Map.new(result.mutants, &{&1.variant, &1})
 
       assert %{mutated_code: capped, note: retry_note} = by_variant[["max_attempts"]]
       assert capped =~ "max_attempts: 1"
@@ -100,9 +100,9 @@ defmodule Mutare.Oban.EnqueueTest do
             "# mutare:ignore[oban_enqueue:unique]"
         )
 
-      {_metamutant, sites, _next_id} = Mutare.transform_string(src, mutators: @mutators)
+      result = Mutare.transform_string(src, mutators: @mutators)
 
-      ignored? = Map.new(sites, &{&1.variant, &1.ignored})
+      ignored? = Map.new(result.mutants, &{&1.variant, &1.ignored})
 
       assert ignored?[["unique"]] == true
       assert ignored?[["max_attempts"]] == false
