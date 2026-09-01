@@ -48,6 +48,16 @@ defmodule Mutare.Oban.WorkerReturnTest do
     assert ":ok" in muts
   end
 
+  test "a bare :discard (the one valid bare legacy return) swaps to :ok" do
+    assert mutateds(worker("def perform(_job), do: :discard")) == [":ok"]
+  end
+
+  test "a bare :cancel is left alone — not a member of Oban's result union" do
+    # Oban logs an unknown return and completes the job anyway, so an :ok swap here
+    # would differ only by a log line: an unkillable no-op.
+    assert mutateds(worker("def perform(_job), do: :cancel")) == []
+  end
+
   test "swaps each branch tail of a case in tail position" do
     body = """
     def perform(%Oban.Job{args: %{"id" => id}}) do
@@ -89,6 +99,36 @@ defmodule Mutare.Oban.WorkerReturnTest do
     assert ":ok" in Enum.map(diffs_for(src, @mutators, :oban_worker_return), &elem(&1, 1))
   end
 
+  test "fires when the behaviour is declared through an alias" do
+    src = """
+    defmodule MyApp.Aliased do
+      alias Oban.Worker
+      @behaviour Worker
+      def perform(_job), do: {:error, :boom}
+    end
+    """
+
+    assert ":ok" in Enum.map(diffs_for(src, @mutators, :oban_worker_return), &elem(&1, 1))
+  end
+
+  test "fires inside an Oban.Pro.Worker (direct @behaviour, process/1)" do
+    src = """
+    defmodule MyApp.Pro do
+      @behaviour Oban.Pro.Worker
+      def process(_job), do: {:error, :boom}
+    end
+    """
+
+    muts = Enum.map(diffs_for(src, @mutators, :oban_worker_return), &elem(&1, 1))
+
+    assert ":ok" in muts
+    assert Enum.any?(muts, &(&1 =~ ~r/\{:cancel, :boom\}/))
+  end
+
+  test "declares Oban.Worker as its deployment requirement (Pro deliberately excluded)" do
+    assert Mutare.Oban.WorkerReturn.required_modules() == [Oban.Worker]
+  end
+
   test "every mutant compiles (the single-build net)" do
     assert_metamutant_compiles(worker("def perform(_job), do: {:error, :boom}"), @mutators)
   end
@@ -106,6 +146,13 @@ defmodule Mutare.Oban.WorkerReturnTest do
 
       assert labels[":ok"] == ["ok"]
       assert labels["{:cancel, :boom}"] == ["cancel"]
+    end
+
+    test "an :ok tail's sentinel swap carries the \"error\" label" do
+      src = worker("def perform(_job), do: :ok")
+      result = Mutare.transform_string(src, mutators: @mutators)
+
+      assert [%{mutated_code: "{:error, :mutare}", variant: ["error"]}] = result.mutants
     end
 
     test "[oban_worker_return:ok] suppresses only the failure-swallowing swap" do

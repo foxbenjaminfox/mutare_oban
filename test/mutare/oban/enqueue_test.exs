@@ -47,6 +47,47 @@ defmodule Mutare.Oban.EnqueueTest do
     assert muts == []
   end
 
+  test "dropping the only option leaves a valid empty keyword list" do
+    src = jobs("MyApp.Worker.new(%{id: id}, unique: [period: 60])")
+
+    assert mutateds(src) == ["MyApp.Worker.new(%{id: id}, [])"]
+    assert_metamutant_compiles(src, @mutators)
+  end
+
+  test "matches the piped form (args |> Worker.new(opts))" do
+    src = jobs("%{id: id} |> MyApp.Worker.new(max_attempts: 5, schedule_in: 30)")
+    muts = mutateds(src)
+
+    assert Enum.any?(muts, &(&1 =~ "max_attempts: 1"))
+    assert Enum.any?(muts, &(not (&1 =~ "schedule_in")))
+    assert length(muts) == 2
+    assert_metamutant_compiles(src, @mutators)
+  end
+
+  test "matches an aliased worker module and keeps the written form" do
+    src = """
+    defmodule MyApp.Jobs do
+      alias MyApp.Worker
+      def schedule(id), do: Worker.new(%{id: id}, schedule_in: 60)
+    end
+    """
+
+    assert mutateds(src) == ["Worker.new(%{id: id}, [])"]
+  end
+
+  test "does not fire on a non-worker new/2 without an Oban-distinctive option" do
+    assert enqueue(jobs("MyApp.Changeset.new(%{id: id}, validate: true, on_error: :raise)")) ==
+             []
+  end
+
+  test "matching is by witness option key, not by the callee module (documented heuristic)" do
+    # The moduledoc: any module's `new` whose options carry one of the mutated keys is
+    # matched — the callee's behaviours are not visible at the call site, and the keys are
+    # Oban-distinctive enough that a false positive at worst rebuilds an equivalent call.
+    assert mutateds(jobs("NotAWorker.new(%{}, max_attempts: 5)")) ==
+             ["NotAWorker.new(%{}, max_attempts: 1)"]
+  end
+
   test "does not fire on a keyword list with no Oban-distinctive key" do
     src = """
     defmodule Plain do
@@ -91,6 +132,19 @@ defmodule Mutare.Oban.EnqueueTest do
       assert %{mutated_code: dropped, note: dedup_note} = by_variant[["unique"]]
       refute dropped =~ "unique"
       assert dedup_note =~ "duplicate"
+    end
+
+    test "schedule_in and scheduled_at mutants carry their option labels and notes" do
+      src = jobs("MyApp.Worker.new(%{id: id}, schedule_in: 30, scheduled_at: any)")
+      result = Mutare.transform_string(src, mutators: @mutators)
+
+      by_variant = Map.new(result.mutants, &{&1.variant, &1})
+
+      assert %{note: delay_note} = by_variant[["schedule_in"]]
+      assert delay_note =~ "delay"
+
+      assert %{note: at_note} = by_variant[["scheduled_at"]]
+      assert at_note =~ "scheduled"
     end
 
     test "[oban_enqueue:unique] suppresses only the dedup drop" do

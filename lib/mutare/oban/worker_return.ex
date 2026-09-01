@@ -24,6 +24,7 @@ defmodule Mutare.Oban.WorkerReturn do
       {:snooze, seconds} ->  :ok                   a reschedule is dropped
       {:discard, reason} ->  :ok                   (legacy discard) silently succeeds
       {:discard, reason} ->  {:cancel, reason}
+      :discard           ->  :ok                   (legacy bare discard) silently succeeds
 
   The headline is **`{:error, reason}` → `:ok`**: the canonical Oban survivor-finder. If a
   test inserts a job that should fail and never asserts the job ends up `retryable` /
@@ -52,6 +53,9 @@ defmodule Mutare.Oban.WorkerReturn do
       survive the tag change), never *rewritten* — a value/seconds swap is `Mutare.Mutators`
       territory and rarely an Oban-semantics question.
     * A bare `:ok` carries no payload to preserve, so its only swap is to a sentinel error.
+    * A bare `:cancel` tail is **not** matched: it is not a member of Oban's `t:Oban.Worker.result/0`
+      union (only `:discard` has a bare legacy form). Oban logs an unknown return and completes the
+      job anyway, so an `:ok` swap there would differ only by a log line — an unkillable no-op.
   """
 
   @behaviour Mutare.Mutator
@@ -61,6 +65,16 @@ defmodule Mutare.Oban.WorkerReturn do
 
   @impl Mutare.Mutator
   def name, do: :oban_worker_return
+
+  @doc """
+  The deployment requirement: `Oban.Worker` must be loadable in the Mutare process, or the
+  `use Oban.Worker` expansion that surfaces `@behaviour Oban.Worker` cannot run and this mutator
+  silently never fires. Declaring it turns that into a loud `Mutare.EnvironmentError` at startup.
+  `Oban.Pro.Worker` is deliberately not listed — Pro is optional, and its absence only narrows
+  the gate.
+  """
+  @impl Mutare.Mutator
+  def required_modules, do: [Oban.Worker]
 
   @doc """
   The swap-target vocabulary for `# mutare:ignore[oban_worker_return:<label>]` — each mutant
@@ -102,10 +116,10 @@ defmodule Mutare.Oban.WorkerReturn do
   defp worker?(behaviours),
     do: Enum.any?(Mutare.Oban.worker_behaviours(), &MapSet.member?(behaviours, &1))
 
-  # Bare-atom tails.
+  # Bare-atom tails. `:discard` is the one tag with a valid bare legacy form; a bare `:cancel`
+  # is not an Oban return (Oban logs it and completes the job), so it falls through to `[]`.
   defp swaps(:ok), do: [error_tuple()]
   defp swaps(:discard), do: [ok()]
-  defp swaps(:cancel), do: [ok()]
 
   # Two-tuple tails `{tag, payload}` — in AST a literal 2-tuple is the only thing that matches
   # this shape (everything else is a 3-element `{call, meta, args}` node), so reading the tag

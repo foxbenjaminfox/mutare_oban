@@ -121,7 +121,7 @@ defmodule Mutare.Oban.Enqueue do
       {_key, value} ->
         case AST.literal_value(value) do
           {:ok, 1} -> []
-          {:ok, _other} -> [{:max_attempts, put(opts, :max_attempts, one())}]
+          {:ok, _other} -> [{:max_attempts, put(opts, :max_attempts, AST.literal(1))}]
           :error -> []
         end
 
@@ -129,15 +129,6 @@ defmodule Mutare.Oban.Enqueue do
         []
     end
   end
-
-  # A `1` literal that survives being rendered *as a keyword value in context* — both in the
-  # metamutant and in the report's Site diff. `Mutare.AST.literal(1)` is clean-meta
-  # (`{:__block__, [], [1]}`); rendered standalone that is fine, but as a keyword-list value
-  # Sourceror stamps a `:line` without the `:token` the Elixir formatter then demands, and crashes.
-  # Parsing the digit yields a literal carrying that `:token`, so it renders everywhere. (We swap a
-  # *whole call* node, so unlike a leaf literal mutation our mutated literal is always rendered in
-  # context.)
-  defp one, do: AST.parse!("1")
 
   # ---- keyword-list helpers over Sourceror pairs `{key_node, value_node}` ----
 

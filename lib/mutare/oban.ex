@@ -43,6 +43,9 @@ defmodule Mutare.Oban do
   `Oban.Worker` (or `Oban.Pro.Worker`). Mutare detects that through its `use`-expansion —
   `use Oban.Worker` injects `@behaviour Oban.Worker` — so **Oban must be loadable in the
   Mutare process** (it is, since `mix mutare` runs with the target's deps on the path).
+  `Mutare.Oban.WorkerReturn` declares that requirement via
+  `c:Mutare.Mutator.required_modules/0`, so a run where Oban is absent aborts loudly at
+  startup instead of silently producing no worker-return mutants.
 
   Two things are deliberately *out of scope* because they are not runtime positions Mutare can
   splice a selector into:
