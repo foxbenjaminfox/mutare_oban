@@ -2,7 +2,13 @@
 /cover/
 /deps/
 /doc/
+/.fetch
 /.elixir_ls/
 erl_crash.dump
 *.ez
+*.beam
 mutare_oban-*.tar
+
+# Dialyzer PLTs (rebuildable cache)
+/priv/plts/*.plt
+/priv/plts/*.plt.hash

@@ -72,6 +72,7 @@ legitimate job that behaves differently — a survivor pinpoints unchecked seman
 | `{:cancel, reason}`  | `{:error, reason}` / `:ok` | a permanent cancel → retry / quiet success |
 | `{:snooze, seconds}` | `:ok`               | a reschedule is dropped                        |
 | `{:discard, reason}` | `:ok` / `{:cancel, reason}` | (legacy discard) silently succeeds     |
+| `:discard`           | `:ok`               | (legacy bare discard) silently succeeds        |
 
 The headline is **`{:error, reason}` → `:ok`**: if a test enqueues a job that should fail and
 never asserts the job ends up `retryable`/`discarded`, that mutant lives.
@@ -140,7 +141,9 @@ under `Mutare.Oban.Enqueue`: if no test asserts the job dedupes, that survives t
 injects `@behaviour Oban.Worker`, which Mutare expands in-process. So **Oban must be loadable in
 the Mutare process** when you run `mix mutare`. It is, by default: `mix mutare` runs with your
 project's deps on the code path. (A direct `@behaviour Oban.Worker` is also detected, no expansion
-needed.)
+needed.) The requirement is declared via `required_modules/0`, so a run where Oban is *not*
+loadable aborts loudly at startup with a `Mutare.EnvironmentError` instead of silently producing
+no worker-return mutants.
 
 ## What's deliberately out of scope
 
@@ -154,12 +157,14 @@ Two things are not runtime positions Mutare can splice a selector into, so they 
 
 ## Development
 
+The plugin is developed against a sibling checkout of Mutare (`{:mutare, path: "../mutare"}`).
+
 ```
 mix deps.get
 mix test          # unit (diffs) + a live semantic check that a mutant actually changes perform/1
-mix check         # format + credo
+mix check         # format + credo + dialyzer
 ```
 
 ## License
 
-Same as Mutare.
+MIT — see [LICENSE](LICENSE).

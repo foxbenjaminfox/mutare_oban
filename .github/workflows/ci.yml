@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Cancel superseded runs on the same PR branch (e.g. rapid pushes). Pushes to
+# master always run to completion, so every commit there keeps its own status.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# NOTE: while mutare core is still a `path:` dependency (pre-Hex), these jobs
+# fail at `mix deps.get` — expected. They go green once the dep is swapped to
+# the published `{:mutare, "~> ..."}` release.
+
+jobs:
+  # Quality gate: format, Credo, and Dialyzer (the `mix check` alias). Runs on a
+  # single, stable toolchain — the one the package is developed against — so the
+  # formatter / Credo / Dialyzer verdicts match a local `mix check`.
+  check:
+    name: mix check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Elixir / OTP
+        id: beam
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        with:
+          elixir-version: "1.19"
+          otp-version: "27"
+
+      - name: Cache deps and _build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-dev-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-dev-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+
+      - name: Cache Dialyzer PLTs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+
+      - run: mix deps.get --check-locked
+      - run: mix deps.compile
+      - run: mix compile --warnings-as-errors
+      - run: mix check
+
+  # Test matrix. The `~> 1.18` requirement admits every stable Elixir 1.x
+  # release from 1.18 onward; each current release line gets a blocking entry
+  # across OTP 25-28 compatible pairings. The development tip is informational
+  # only (continue-on-error).
+  test:
+    name: test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.allow-failure || false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { elixir: "1.18", otp: "25" }
+          - { elixir: "1.18", otp: "27" }
+          - { elixir: "1.19", otp: "26" }
+          - { elixir: "1.19", otp: "28" }
+          - { elixir: "1.20", otp: "28" }
+          - { elixir: "main", otp: "28", allow-failure: true }
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Elixir / OTP
+        id: beam
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - name: Cache deps and _build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-test-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-test-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+
+      - run: mix deps.get --check-locked
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+
+  # Oban's only role in the plugin is `use Oban.Worker` expansion in the test
+  # sources (the mutators name `Oban.Worker` as an atom, never call into Oban),
+  # so one job at the declared minimum guards the version floor; the matrix
+  # above already runs the locked (latest) Oban.
+  oban:
+    name: test (Oban 2.17, minimum)
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+      MIX_LOCKFILE: mix-oban-2.17.lock
+      OBAN_REQUIREMENT: "~> 2.17.0"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Elixir / OTP
+        id: beam
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        with:
+          elixir-version: "1.19"
+          otp-version: "27"
+
+      - name: Cache deps and _build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-oban-min-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.exs') }}
+
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test
