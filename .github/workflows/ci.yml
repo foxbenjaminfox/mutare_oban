@@ -14,10 +14,6 @@ concurrency:
 permissions:
   contents: read
 
-# NOTE: while mutare core is still a `path:` dependency (pre-Hex), these jobs
-# fail at `mix deps.get` — expected. They go green once the dep is swapped to
-# the published `{:mutare, "~> ..."}` release.
-
 jobs:
   # Quality gate: format, Credo, and Dialyzer (the `mix check` alias). Runs on a
   # single, stable toolchain — the one the package is developed against — so the

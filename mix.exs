@@ -10,7 +10,7 @@ defmodule Mutare.Oban.MixProject do
       version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      description: "Mutation-testing mutators for Oban — a Mutare plugin.",
+      description: "Mutare mutators for Oban",
       package: package(),
       lockfile: System.get_env("MIX_LOCKFILE", "mix.lock"),
       deps: deps(),
@@ -24,11 +24,8 @@ defmodule Mutare.Oban.MixProject do
     [extra_applications: [:logger]]
   end
 
-  # Hex package metadata. The `mutare` core is still a `path:` dependency, so an actual
-  # `mix hex.publish` stays blocked until Mutare itself ships to Hex — this section keeps
-  # the manifest (license, links, the files that ship) ready for that day. Only runtime
-  # and doc artifacts ship: `lib/`, the README extra ExDoc renders, the license, and
-  # `mix.exs` — never the test suite.
+  # Hex package metadata. Only runtime and doc artifacts ship: `lib/`, the README and
+  # changelog extras ExDoc renders, the license, and `mix.exs` — never the test suite.
   defp package do
     [
       licenses: ["MIT"],
@@ -44,7 +41,10 @@ defmodule Mutare.Oban.MixProject do
 
   defp deps do
     [
-      {:mutare, path: "../mutare"},
+      # 0.1.1 at least: 0.1.0's unit-return classification silenced the `:ok` return
+      # mutants of every behaviour callback — `WorkerReturn`'s whole `:ok` case — before
+      # core exempted callbacks.
+      {:mutare, "~> 0.1.1"},
       # Oban is *not* a runtime dependency of the plugin: the mutators only ever name
       # `Oban.Worker` as a compile-time atom (a behaviour key), never call into Oban. It is
       # needed in `:test` only because the test sources contain `use Oban.Worker`, which
