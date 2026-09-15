@@ -1,5 +1,10 @@
 # mutare_oban
 
+[![Hex.pm](https://img.shields.io/hexpm/v/mutare_oban.svg)](https://hex.pm/packages/mutare_oban)
+[![Hexdocs](https://img.shields.io/badge/hexdocs-docs-blue.svg)](https://hexdocs.pm/mutare_oban)
+[![CI](https://github.com/foxbenjaminfox/mutare_oban/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/foxbenjaminfox/mutare_oban/actions/workflows/ci.yml)
+[![License](https://img.shields.io/hexpm/l/mutare_oban.svg)](https://github.com/foxbenjaminfox/mutare_oban/blob/master/LICENSE)
+
 Mutation-testing mutators for [Oban](https://hexdocs.pm/oban), built as a plugin for
 [Mutare](https://hexdocs.pm/mutare).
 
