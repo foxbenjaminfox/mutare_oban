@@ -2,8 +2,8 @@ defmodule Mutare.Oban.Enqueue do
   @moduledoc """
   Mutates the **enqueue options** of an Oban job — the keyword options passed when a job is
   built (`MyWorker.new(args, max_attempts: 3, unique: [...], schedule_in: 60)`). These options
-  encode the job's retry / dedup / scheduling *policy*, so dropping or weakening one asks the
-  suite a pointed question.
+  encode the job's retry / dedup / scheduling *policy*. Changing or removing an option tests
+  whether the suite detects the corresponding change in behaviour.
 
   ## The mutations
 
@@ -16,18 +16,18 @@ defmodule Mutare.Oban.Enqueue do
   construction (dropping a keyword pair or substituting the literal `1` always yields a legal
   keyword list — even the empty `[]`, a valid second argument to `new/2`).
 
-  Each mutant is a `Mutare.Mutator.Mutation` tagged with the option it attacks as its ignore
+  Each mutant is a `Mutare.Mutator.Mutation` tagged with the option it changes as its ignore
   variant — so `# mutare:ignore[oban_enqueue:unique]` suppresses just the dedup drop on that
-  line (see `Mutare.Ignore`) — and carries a report note saying what a survivor leaves
-  unasserted.
+  line (see `Mutare.Ignore`) — and includes a report note describing an assertion that could
+  detect the change.
 
   ## How it matches
 
-  It matches the **`new/N` call** (not the keyword list — Mutare descends trailing keyword
-  options as individual call arguments, never offering the list as a single node), resolving it
+  It matches the **`new/N` call** (not the keyword list — Mutare traverses trailing keyword
+  options as individual call arguments, never passing the list as a single node), resolving it
   through `Mutare.Calls.resolved_call/1` so the direct, aliased, and piped
   (`args |> MyWorker.new(opts)`) forms all match, and rebuilds the call with the mutated options
-  in the form the source wrote. It fires on **any** module's `new` whose options carry one of
+  in the form used in the source. It applies to **any** module's `new` whose options include one of
   the keys it mutates (`max_attempts`, `unique`, `schedule_in`, `scheduled_at`) — Oban-distinctive
   enough that a false positive is unlikely, and would at worst rebuild an equivalent call
   elsewhere, never miscompile.
@@ -51,8 +51,8 @@ defmodule Mutare.Oban.Enqueue do
   def name, do: :oban_enqueue
 
   @doc """
-  The attacked-option vocabulary for `# mutare:ignore[oban_enqueue:<label>]` — each mutant is
-  tagged at production with the key it caps or drops.
+  The option labels for `# mutare:ignore[oban_enqueue:<label>]` — each mutant is
+  tagged with the key of the option changed or removed.
   """
   @impl Mutare.Mutator
   def variants, do: @relevant

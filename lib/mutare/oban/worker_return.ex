@@ -4,55 +4,54 @@ defmodule Mutare.Oban.WorkerReturn do
   for a *different but still valid* Oban outcome — the higher-signal analogue of
   `Mutare.Mutators.ReturnValue`'s sentinel.
 
-  It is **behaviour-gated**: it fires only inside a module that implements `Oban.Worker` (or
-  `Oban.Pro.Worker`), read from the enclosing module's behaviour set
+  Applies only inside a module that implements `Oban.Worker` (or
+  `Oban.Pro.Worker`), as recorded in the enclosing module's behaviour set
   (`context.behaviours`, gathered by Mutare from a `use Oban.Worker`'s injected
-  `@behaviour`). Everywhere else it is inert.
+  `@behaviour`). No mutations are produced elsewhere.
 
-  Because every swap is itself a **valid** Oban return, the mutant runs as a legitimate job
-  that *behaves differently* — so a survivor pinpoints a precise gap: *no test checks this
-  job's success / failure / retry / cancel / snooze semantics.*
+  Every replacement is a **valid** Oban return with a different effect on the job's outcome.
+  A survivor indicates that the suite did not detect the change in success / failure / retry /
+  cancel / snooze behaviour.
 
   ## The swaps
 
       :ok                ->  {:error, :mutare}     a completed job is now retryable
       {:ok, value}       ->  {:error, :mutare}     a completed job is now retryable
-      {:error, reason}   ->  :ok                   ★ a failure is silently swallowed
+      {:error, reason}   ->  :ok                   a failure is treated as success
       {:error, reason}   ->  {:cancel, reason}     a transient failure becomes a permanent cancel
       {:cancel, reason}  ->  {:error, reason}      a permanent cancel becomes retryable
-      {:cancel, reason}  ->  :ok                   a cancel becomes a quiet success
+      {:cancel, reason}  ->  :ok                   a cancel becomes a success
       {:snooze, seconds} ->  :ok                   a reschedule is dropped
-      {:discard, reason} ->  :ok                   (legacy discard) silently succeeds
+      {:discard, reason} ->  :ok                   a legacy discard becomes a success
       {:discard, reason} ->  {:cancel, reason}
-      :discard           ->  :ok                   (legacy bare discard) silently succeeds
+      :discard           ->  :ok                   a legacy bare discard becomes a success
 
-  The headline is **`{:error, reason}` → `:ok`**: the canonical Oban survivor-finder. If a
-  test inserts a job that should fail and never asserts the job ends up `retryable` /
-  `discarded`, that mutant lives.
+  For example, **`{:error, reason}` → `:ok`** can survive if a test inserts a job that should
+  fail but never asserts that the job ends up `retryable` / `discarded`.
 
   ## Ignore variants
 
   Each mutant is labelled by the Oban return it *becomes* — `ok`, `error`, or `cancel` — so a
   `# mutare:ignore[oban_worker_return:<label>]` directive can suppress one kind of swap
-  without silencing the family:
+  without excluding the family:
 
       {:error, reason} # mutare:ignore[oban_worker_return:ok] best-effort, failure unasserted
 
   keeps the `{:error, reason}` → `{:cancel, reason}` mutant while dropping the
-  failure-swallowing `:ok` swap on that line. See `Mutare.Ignore`.
+  swap from an error to `:ok` on that line. See `Mutare.Ignore`.
 
   Each mutant reuses the original `reason` operand and injects only literal control atoms, so
   every one is a **valid return that compiles** — the single metamutant build is never at
   risk. Return tails are delivered by Mutare's structural `return_replacements/2` hook, so the
-  swaps also reach a worker that returns from a branch tail of a `case`/`cond`/`if`/`with` in
-  tail position, not just the clause body.
+  swaps also apply to returns from branch tails of a `case`/`cond`/`if`/`with` in tail
+  position, as well as the clause body.
 
   ## Deliberately left alone
 
-    * The `{:ok, value}`'s `value` and a `{:snooze, _}`'s `seconds` are dropped (they don't
-      survive the tag change), never *rewritten* — a value/seconds swap is `Mutare.Mutators`
-      territory and rarely an Oban-semantics question.
-    * A bare `:ok` carries no payload to preserve, so its only swap is to a sentinel error.
+    * The `{:ok, value}`'s `value` and a `{:snooze, seconds}`'s `seconds` are dropped when
+      replacing the return with `{:error, :mutare}` or `:ok`, respectively. Mutations of the
+      payload itself are handled by `Mutare.Mutators`.
+    * A bare `:ok` has no payload to preserve, so its only swap is to a sentinel error.
     * A bare `:cancel` tail is **not** matched: it is not a member of Oban's `t:Oban.Worker.result/0`
       union (only `:discard` has a bare legacy form). Oban logs an unknown return and completes the
       job anyway, so an `:ok` swap there would differ only by a log line — an unkillable no-op.
@@ -68,16 +67,15 @@ defmodule Mutare.Oban.WorkerReturn do
 
   @doc """
   The deployment requirement: `Oban.Worker` must be loadable in the Mutare process, or the
-  `use Oban.Worker` expansion that surfaces `@behaviour Oban.Worker` cannot run and this mutator
-  silently never fires. Declaring it turns that into a loud `Mutare.EnvironmentError` at startup.
-  `Oban.Pro.Worker` is deliberately not listed — Pro is optional, and its absence only narrows
-  the gate.
+  `use Oban.Worker` expansion that provides `@behaviour Oban.Worker` cannot run. Declaring this
+  requirement causes a `Mutare.EnvironmentError` at startup if Oban is not loadable.
+  `Oban.Pro.Worker` is deliberately not listed because Pro is optional.
   """
   @impl Mutare.Mutator
   def required_modules, do: [Oban.Worker]
 
   @doc """
-  The swap-target vocabulary for `# mutare:ignore[oban_worker_return:<label>]` — each mutant
+  The return-tag labels for `# mutare:ignore[oban_worker_return:<label>]` — each mutant
   is labelled by the Oban return it becomes: `"ok"`, `"error"`, or `"cancel"`.
   """
   @impl Mutare.Mutator
@@ -87,7 +85,7 @@ defmodule Mutare.Oban.WorkerReturn do
   Classifies an emitted swap by its replacement's return tag (`c:Mutare.Mutator.variant/2`).
 
   Every mutant this family produces is exactly one of `:ok`, `{:error, _}`, or `{:cancel, _}`,
-  so the label reads directly off the mutated node.
+  so the label is derived directly from the mutated node.
   """
   @impl Mutare.Mutator
   def variant(_original, mutated) do
@@ -102,7 +100,7 @@ defmodule Mutare.Oban.WorkerReturn do
   defp tag_label(_other), do: nil
 
   @doc """
-  Offer the alternative Oban return(s) for `tail`, but only inside a worker module (read from
+  Returns the alternative Oban return(s) for `tail`, but only inside a worker module (read from
   `context.behaviours`). The context-aware form of
   `c:Mutare.Mutator.Structural.return_replacements/1`.
   """
