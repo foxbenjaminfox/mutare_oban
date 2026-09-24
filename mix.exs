@@ -44,7 +44,7 @@ defmodule Mutare.Oban.MixProject do
       # 0.1.1 at least: 0.1.0's unit-return classification silenced the `:ok` return
       # mutants of every behaviour callback — `WorkerReturn`'s whole `:ok` case — before
       # core exempted callbacks.
-      {:mutare, "~> 0.1.1"},
+      {:mutare, "~> 0.4.0"},
       # Oban is *not* a runtime dependency of the plugin: the mutators only ever name
       # `Oban.Worker` as a compile-time atom (a behaviour key), never call into Oban. It is
       # needed in `:test` only because the test sources contain `use Oban.Worker`, which

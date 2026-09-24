@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Mutare 0.4.0 or newer is required** (`{:mutare, "~> 0.4.0"}`). Mutare now hands a
+  piped `args |> MyWorker.new(opts)` to the enqueue family as the direct call it is sugar
+  for, so both spellings are matched by one path; the mutants, their variants and their
+  notes are unchanged.
+
 ## [0.1.0] - 2026-09-07
 
 Initial release.

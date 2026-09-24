@@ -66,9 +66,9 @@ defmodule Mutare.Oban.Enqueue do
   end
 
   # Find the (last) keyword-list argument carrying an Oban option, mutate it, and rebuild the
-  # call around each mutant. Handles the direct `new(args, opts)` and piped `args |> new(opts)`
-  # shapes alike — in the latter `args` is just `[opts]`. Each mutant is tagged with the
-  # attacked key (its ignore variant) and a survivor note.
+  # call around each mutant. A piped `args |> new(opts)` arrives as the direct `new(args, opts)`
+  # (Mutare desugars the stage before offering it), so both spellings are one case. Each mutant
+  # is tagged with the attacked key (its ignore variant) and a survivor note.
   defp mutate_new(args, rebuild) do
     with {index, opts} <- find_opts(args),
          [_ | _] = mutations <- opts_mutations(opts) do

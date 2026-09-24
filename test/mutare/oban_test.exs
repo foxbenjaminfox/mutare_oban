@@ -1,6 +1,5 @@
 defmodule Mutare.ObanTest do
-  # async: false — `with_active_mutant/2` flips a VM-wide :persistent_term selection slot.
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   import Mutare.Test
 
