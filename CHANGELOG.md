@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26
+
 ### Changed
 
-- **Mutare 0.4.0 or newer is required** (`{:mutare, "~> 0.4.0"}`). Mutare now hands a
+- **Mutare 0.4.1 or newer is required** (`{:mutare, "~> 0.4.1"}`). Mutare now hands a
   piped `args |> MyWorker.new(opts)` to the enqueue family as the direct call it is sugar
   for, so both spellings are matched by one path; the mutants, their variants and their
   notes are unchanged.
@@ -38,5 +40,6 @@ Initial release.
   `# mutare:ignore[oban_enqueue:unique]` can suppress one kind of mutant.
 - `Mutare.Oban.all/0` for splicing both families into a `:mutators` list.
 
-[Unreleased]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/foxbenjaminfox/mutare_oban/releases/tag/v0.1.0
