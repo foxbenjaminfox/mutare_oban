@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-03
+
+### Changed
+
+- Requires Mutare 0.5 (`{:mutare, "~> 0.5.0"}`).
+
 ## [0.2.0] - 2026-09-26
 
 ### Changed
@@ -40,6 +46,7 @@ Initial release.
   `# mutare:ignore[oban_enqueue:unique]` can suppress one kind of mutant.
 - `Mutare.Oban.all/0` for splicing both families into a `:mutators` list.
 
-[Unreleased]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/foxbenjaminfox/mutare_oban/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/foxbenjaminfox/mutare_oban/releases/tag/v0.1.0

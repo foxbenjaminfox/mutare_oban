@@ -27,7 +27,7 @@ Add it (and Mutare) as dev/test dependencies:
 ```elixir
 def deps do
   [
-    {:mutare, "~> 0.4.1", only: [:dev, :test], runtime: false},
+    {:mutare, "~> 0.5.0", only: [:dev, :test], runtime: false},
     {:mutare_oban, "~> 0.2", only: [:dev, :test], runtime: false}
   ]
 end
